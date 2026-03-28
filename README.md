@@ -47,14 +47,3 @@ Or push to GitHub and connect the repo to vercel.app — it auto-detects Create 
 - **Backend equivalence** — proves Qiskit ≡ Q# for all markets
 - **Full sortable results table** — click any column header to sort
 
-## Difference from major-II
-
-| Feature | major-II | This dashboard |
-|---|---|---|
-| Markets | NIFTY + others | BSE/NASDAQ/HSI/SSE/Russell2000/TAIEX |
-| Backends | Qiskit only | Qiskit + Q# |
-| Model toggles | Fixed | Interactive pills |
-| Metric switching | Fixed | NMSE/RMSE/MAPE toggle |
-| Table | Static | Sortable |
-| Radar chart | No | Yes |
-| Backend equiv proof | No | Yes |
