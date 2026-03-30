@@ -2,18 +2,18 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   LineChart, Line, BarChart, Bar, RadarChart, Radar, PolarGrid,
   PolarAngleAxis, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
-  ResponsiveContainer, ReferenceLine,
+  ResponsiveContainer,
 } from 'recharts';
 
 // ─── palette ────────────────────────────────────────────────────────────────
 const C = {
-  enn10:   '#a78bfa',
-  enn20:   '#818cf8',
+  enn10:   '#7449f6',
+  enn20:   '#ae44fa',
   enn40:   '#60a5fa',
-  enn70:   '#34d399',
-  enn100:  '#fbbf24',
-  qiskit:  '#f87171',
-  qsharp:  '#fb923c',
+  enn70:   '#25e29d',
+  enn100:  '#f7b610',
+  qiskit:  '#c63030',
+  qsharp:  '#e77d26',
   actual:  '#e2e4f0',
   grid:    'rgba(255,255,255,0.04)',
   border:  '#1f2133',
@@ -100,80 +100,15 @@ function LoadScreen({ message }) {
   );
 }
 
-// ─── HEATMAP ─────────────────────────────────────────────────────────────────
-function nmseColor(v) {
-  const lo = Math.log10(0.05), hi = Math.log10(20);
-  const t = Math.min(1, Math.max(0, (Math.log10(Math.max(v, 0.001)) - lo) / (hi - lo)));
-  if (t < 0.5) {
-    const s = t * 2;
-    return `rgb(${Math.round(74 + (251-74)*s)},${Math.round(222 + (191-222)*s)},${Math.round(128 + (36-128)*s)})`;
-  }
-  const s = (t - 0.5) * 2;
-  return `rgb(${Math.round(251 + (248-251)*s)},${Math.round(191 + (113-191)*s)},${Math.round(36 + (113-36)*s)})`;
-}
-function Heatmap({ data }) {
-  const colW = `${Math.floor(80 / MARKETS.length)}%`;
-  return (
-    <div style={{ overflowX:'auto' }}>
-      <table style={{ width:'100%', borderCollapse:'collapse', fontSize:11 }}>
-        <thead>
-          <tr>
-            <th style={{ textAlign:'left', fontFamily:'var(--mono)', fontSize:9,
-              color:'var(--muted)', padding:'6px 10px', textTransform:'uppercase',
-              letterSpacing:'.08em', width:'20%' }}>Model</th>
-            {MARKETS.map(m => (
-              <th key={m} style={{ fontFamily:'var(--mono)', fontSize:9, color:'var(--muted)',
-                padding:'6px 4px', textAlign:'center', textTransform:'uppercase',
-                letterSpacing:'.06em', width:colW }}>{m}</th>
-            ))}
-            <th style={{ fontFamily:'var(--mono)', fontSize:9, color:'var(--muted)',
-              padding:'6px 8px', textAlign:'center', textTransform:'uppercase',
-              letterSpacing:'.06em' }}>Avg</th>
-          </tr>
-        </thead>
-        <tbody>
-          {MODEL_ORDER.map(model => {
-            const vals = MARKETS.map(mkt => data[mkt]?.models[model]?.nmse ?? null);
-            const valid = vals.filter(v => v !== null);
-            const avg = valid.length ? valid.reduce((a,b) => a+b,0) / valid.length : null;
-            return (
-              <tr key={model}>
-                <td style={{ padding:'5px 10px', display:'flex', alignItems:'center', gap:7 }}>
-                  <Dot color={MODEL_COLOR[model]} size={7} />
-                  <span style={{ fontFamily:'var(--mono)', fontSize:10 }}>{model}</span>
-                </td>
-                {vals.map((v, i) => (
-                  <td key={i} style={{ padding:3, textAlign:'center' }}>
-                    {v !== null ? (
-                      <div style={{ background:nmseColor(v), borderRadius:4,
-                        padding:'7px 3px', fontFamily:'var(--mono)', fontSize:10,
-                        fontWeight:700, color:'#07080f' }}>
-                        {v < 1 ? v.toFixed(3) : v.toFixed(2)}
-                      </div>
-                    ) : <div style={{ padding:'7px 3px', color:'var(--muted)', fontSize:10 }}>—</div>}
-                  </td>
-                ))}
-                <td style={{ padding:3, textAlign:'center' }}>
-                  {avg !== null && (
-                    <div style={{ background:nmseColor(avg), borderRadius:4,
-                      padding:'7px 6px', fontFamily:'var(--mono)', fontSize:10,
-                      fontWeight:700, color:'#07080f', border:'1px solid rgba(0,0,0,0.15)' }}>
-                      {avg < 1 ? avg.toFixed(3) : avg.toFixed(2)}
-                    </div>
-                  )}
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-    </div>
-  );
-}
 
 // ─── PREDICTION LINE CHART ────────────────────────────────────────────────────
 function PredChart({ marketData, selectedModels }) {
-  if (!marketData) return null;
+  if (!marketData || selectedModels.length === 0) return (
+    <div style={{ height:260, display:'flex', alignItems:'center', justifyContent:'center',
+      fontFamily:'var(--mono)', fontSize:11, color:'var(--muted)' }}>
+      No models selected
+    </div>
+  );
   const actual = marketData.models['ENN-10']?.actual ?? [];
   const chartData = actual.map((v, i) => {
     const row = { i, actual: v };
@@ -204,9 +139,15 @@ function PredChart({ marketData, selectedModels }) {
 
 // ─── LOSS CURVE CHART ─────────────────────────────────────────────────────────
 function LossChart({ marketData, selectedModels }) {
-  if (!marketData) return null;
+  if (!marketData || selectedModels.length === 0) return (
+    <div style={{ height:220, display:'flex', alignItems:'center', justifyContent:'center',
+      fontFamily:'var(--mono)', fontSize:11, color:'var(--muted)' }}>
+      No models selected
+    </div>
+  );
   const maxLen = Math.max(...selectedModels.map(m =>
     marketData.models[m]?.train_history?.length ?? 0));
+  if (maxLen === 0) return null;
   const chartData = Array.from({ length: maxLen }, (_, i) => {
     const row = { epoch: i };
     selectedModels.forEach(m => {
@@ -219,11 +160,12 @@ function LossChart({ marketData, selectedModels }) {
     <ResponsiveContainer width="100%" height={220}>
       <LineChart data={chartData} margin={{ top:4, right:8, left:0, bottom:4 }}>
         <CartesianGrid stroke={C.grid} />
-        <XAxis dataKey="epoch" tick={AXIS_STYLE} tickLine={false} axisLine={false} label={{ value:'Epoch', position:'insideBottom', offset:-2, fill:'#6b6f8e', fontSize:9, fontFamily:'var(--mono)' }} />
+        <XAxis dataKey="epoch" tick={AXIS_STYLE} tickLine={false} axisLine={false}
+          label={{ value:'Epoch', position:'insideBottom', offset:-2,
+            fill:'#6b6f8e', fontSize:9, fontFamily:'var(--mono)' }} />
         <YAxis tick={AXIS_STYLE} tickLine={false} axisLine={false} width={52}
           tickFormatter={v => v < 0.001 ? v.toExponential(1) : v.toFixed(4)} />
-        <Tooltip contentStyle={TIP_STYLE}
-          formatter={(v) => [v?.toFixed(6), '']} />
+        <Tooltip contentStyle={TIP_STYLE} formatter={(v) => [v?.toFixed(6), '']} />
         {selectedModels.map(m => (
           <Line key={m} dataKey={m} stroke={MODEL_COLOR[m]} strokeWidth={1.5}
             dot={false} name={m} />
@@ -235,10 +177,16 @@ function LossChart({ marketData, selectedModels }) {
 }
 
 // ─── METRIC BAR CHART ────────────────────────────────────────────────────────
-function MetricBar({ data, metric = 'nmse' }) {
+function MetricBar({ data, metric = 'nmse', visibleModels = MODEL_ORDER }) {
+  if (visibleModels.length === 0) return (
+    <div style={{ height:240, display:'flex', alignItems:'center', justifyContent:'center',
+      fontFamily:'var(--mono)', fontSize:11, color:'var(--muted)' }}>
+      No models selected
+    </div>
+  );
   const chartData = MARKETS.map(mkt => {
     const row = { market: mkt };
-    MODEL_ORDER.forEach(m => {
+    visibleModels.forEach(m => {
       row[m] = data[mkt]?.models[m]?.[metric] ?? null;
     });
     return row;
@@ -251,7 +199,7 @@ function MetricBar({ data, metric = 'nmse' }) {
         <YAxis tick={AXIS_STYLE} tickLine={false} axisLine={false} width={48}
           tickFormatter={v => v >= 1 ? v.toFixed(1) : v.toFixed(2)} />
         <Tooltip contentStyle={TIP_STYLE} formatter={v => v?.toFixed(5)} />
-        {MODEL_ORDER.map(m => (
+        {visibleModels.map(m => (
           <Bar key={m} dataKey={m} fill={MODEL_COLOR[m]} radius={[2,2,0,0]}
             fillOpacity={0.85} name={m} />
         ))}
@@ -263,7 +211,12 @@ function MetricBar({ data, metric = 'nmse' }) {
 
 // ─── RADAR CHART ─────────────────────────────────────────────────────────────
 function NMSERadar({ data, selectedModels }) {
-  // For radar: lower NMSE = better, so we invert: score = 1 / (1 + nmse)
+  if (selectedModels.length === 0) return (
+    <div style={{ height:280, display:'flex', alignItems:'center', justifyContent:'center',
+      fontFamily:'var(--mono)', fontSize:11, color:'var(--muted)' }}>
+      No models selected
+    </div>
+  );
   const chartData = MARKETS.map(mkt => {
     const row = { market: mkt };
     selectedModels.forEach(m => {
@@ -347,13 +300,15 @@ function ResultsTable({ data }) {
       rows.push({ market:mkt, model:m, ...d });
     });
   });
-  const sorted = [...rows].sort((a,b) => (a[sort.key] - b[sort.key]) * sort.dir);
+  const sorted = [...rows].sort((a,b) => {
+    if (typeof a[sort.key] === 'string') return a[sort.key].localeCompare(b[sort.key]) * sort.dir;
+    return (a[sort.key] - b[sort.key]) * sort.dir;
+  });
   const th = (label, key) => (
     <th onClick={() => setSort(s => ({ key, dir: s.key===key ? -s.dir : 1 }))}
       style={{ fontFamily:'var(--mono)', fontSize:9, color:'var(--muted)', padding:'8px 12px',
         textAlign:'left', textTransform:'uppercase', letterSpacing:'.08em', cursor:'pointer',
-        userSelect:'none', borderBottom:'1px solid var(--border)',
-        whiteSpace:'nowrap' }}>
+        userSelect:'none', borderBottom:'1px solid var(--border)', whiteSpace:'nowrap' }}>
       {label} {sort.key===key ? (sort.dir===1 ? '↑' : '↓') : ''}
     </th>
   );
@@ -398,14 +353,85 @@ function ResultsTable({ data }) {
     </div>
   );
 }
+// ─── HEATMAP ─────────────────────────────────────────────────────────────────
+function nmseColor(v) {
+  const lo = Math.log10(0.05), hi = Math.log10(20);
+  const t = Math.min(1, Math.max(0, (Math.log10(Math.max(v, 0.001)) - lo) / (hi - lo)));
+  if (t < 0.5) {
+    const s = t * 2;
+    return `rgb(${Math.round(74 + (251-74)*s)},${Math.round(222 + (191-222)*s)},${Math.round(128 + (36-128)*s)})`;
+  }
+  const s = (t - 0.5) * 2;
+  return `rgb(${Math.round(251 + (248-251)*s)},${Math.round(191 + (113-191)*s)},${Math.round(36 + (113-36)*s)})`;
+}
+function Heatmap({ data }) {
+  const colW = `${Math.floor(80 / MARKETS.length)}%`;
+  return (
+    <div style={{ overflowX:'auto' }}>
+      <table style={{ width:'100%', borderCollapse:'collapse', fontSize:11 }}>
+        <thead>
+          <tr>
+            <th style={{ textAlign:'left', fontFamily:'var(--mono)', fontSize:9,
+              color:'var(--muted)', padding:'6px 10px', textTransform:'uppercase',
+              letterSpacing:'.08em', width:'20%' }}>Model</th>
+            {MARKETS.map(m => (
+              <th key={m} style={{ fontFamily:'var(--mono)', fontSize:9, color:'var(--muted)',
+                padding:'6px 4px', textAlign:'center', textTransform:'uppercase',
+                letterSpacing:'.06em', width:colW }}>{m}</th>
+            ))}
+            <th style={{ fontFamily:'var(--mono)', fontSize:9, color:'var(--muted)',
+              padding:'6px 8px', textAlign:'center', textTransform:'uppercase',
+              letterSpacing:'.06em' }}>Avg</th>
+          </tr>
+        </thead>
+        <tbody>
+          {MODEL_ORDER.map(model => {
+            const vals = MARKETS.map(mkt => data[mkt]?.models[model]?.nmse ?? null);
+            const valid = vals.filter(v => v !== null);
+            const avg = valid.length ? valid.reduce((a,b) => a+b,0) / valid.length : null;
+            return (
+              <tr key={model}>
+                <td style={{ padding:'5px 10px', display:'flex', alignItems:'center', gap:7 }}>
+                  <Dot color={MODEL_COLOR[model]} size={7} />
+                  <span style={{ fontFamily:'var(--mono)', fontSize:10 }}>{model}</span>
+                </td>
+                {vals.map((v, i) => (
+                  <td key={i} style={{ padding:3, textAlign:'center' }}>
+                    {v !== null ? (
+                      <div style={{ background:nmseColor(v), borderRadius:4,
+                        padding:'7px 3px', fontFamily:'var(--mono)', fontSize:10,
+                        fontWeight:700, color:'#07080f' }}>
+                        {v < 1 ? v.toFixed(3) : v.toFixed(2)}
+                      </div>
+                    ) : <div style={{ padding:'7px 3px', color:'var(--muted)', fontSize:10 }}>—</div>}
+                  </td>
+                ))}
+                <td style={{ padding:3, textAlign:'center' }}>
+                  {avg !== null && (
+                    <div style={{ background:nmseColor(avg), borderRadius:4,
+                      padding:'7px 6px', fontFamily:'var(--mono)', fontSize:10,
+                      fontWeight:700, color:'#07080f', border:'1px solid rgba(0,0,0,0.15)' }}>
+                      {avg < 1 ? avg.toFixed(3) : avg.toFixed(2)}
+                    </div>
+                  )}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 
 // ─── APP ─────────────────────────────────────────────────────────────────────
 export default function App() {
-  const [data, setData]             = useState(null);
-  const [error, setError]           = useState(null);
-  const [market, setMarket]         = useState('BSE');
-  const [metric, setMetric]         = useState('nmse');
-  const [activeModels, setActive]   = useState(new Set(MODEL_ORDER));
+  const [data, setData]           = useState(null);
+  const [error, setError]         = useState(null);
+  const [market, setMarket]       = useState('BSE');
+  const [metric, setMetric]       = useState('nmse');
+  const [activeModels, setActive] = useState(new Set(MODEL_ORDER));
 
   useEffect(() => {
     fetch('/results.json')
@@ -426,8 +452,10 @@ export default function App() {
     <div style={{ minHeight:'100vh', display:'flex', flexDirection:'column',
       alignItems:'center', justifyContent:'center', gap:16 }}>
       <div style={{ fontFamily:'var(--mono)', fontSize:14, color:'var(--coral)' }}>⚠ {error}</div>
-      <div style={{ fontFamily:'var(--mono)', fontSize:11, color:'var(--muted)', maxWidth:480, textAlign:'center', lineHeight:1.7 }}>
-        Copy <code style={{ background:'var(--surface2)', padding:'1px 6px', borderRadius:3 }}>results/results.json</code> into <code style={{ background:'var(--surface2)', padding:'1px 6px', borderRadius:3 }}>public/</code> and restart.
+      <div style={{ fontFamily:'var(--mono)', fontSize:11, color:'var(--muted)',
+        maxWidth:480, textAlign:'center', lineHeight:1.7 }}>
+        Copy <code style={{ background:'var(--surface2)', padding:'1px 6px', borderRadius:3 }}>results/results.json</code> into{' '}
+        <code style={{ background:'var(--surface2)', padding:'1px 6px', borderRadius:3 }}>public/</code> and restart.
       </div>
     </div>
   );
@@ -453,26 +481,11 @@ export default function App() {
 
       {/* ── Header ── */}
       <header style={{ padding:'44px 0 28px', borderBottom:'1px solid var(--border)', marginBottom:4 }}>
-        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-end', flexWrap:'wrap', gap:16 }}>
-          <div>
-            <div style={{ fontFamily:'var(--mono)', fontSize:10, color:'var(--accent)',
-              letterSpacing:'.15em', textTransform:'uppercase', marginBottom:10 }}>
-              Liu &amp; Ma (2022) Replication · Comparative Study
-            </div>
-            <h1 style={{ fontFamily:'var(--sans)', fontWeight:700,
-              fontSize:'clamp(22px,4vw,38px)', lineHeight:1.15, color:'var(--text)' }}>
-              ENN vs{' '}
-              <span style={{ color:'var(--accent)' }}>QENN</span>
-              <br />Stock Price Prediction
-            </h1>
-          </div>
-          <div style={{ fontFamily:'var(--mono)', fontSize:10, color:'var(--muted)',
-            textAlign:'right', lineHeight:2 }}>
-            6 markets · 300 samples<br />
-            ENN: 250 ep · QENN: 100 ep<br />
-            PyTorch · Qiskit · Q# · DCQGA
-          </div>
-        </div>
+        <h1 style={{ fontFamily:'var(--sans)', fontWeight:700,
+          fontSize:'clamp(22px,4vw,38px)', lineHeight:1.15, color:'var(--text)' }}>
+          ENN vs <span style={{ color:'var(--accent)' }}>QENN</span>
+          <br />Stock Price Prediction
+        </h1>
       </header>
 
       {/* ── Stat strip ── */}
@@ -482,7 +495,7 @@ export default function App() {
           sub={`${best?.mkt} · ${best?.m}`} accent="var(--teal)" />
         <Metric label="Best QENN NMSE"
           value={Math.min(...qnnAvg).toFixed(4)}
-          sub="NASDAQ · Qiskit/Q#" accent="var(--coral)" />
+          sub="SSE · Qiskit/Q#" accent="var(--coral)" />
         <Metric label="Avg gap factor" value={`${avgGap.toFixed(1)}×`}
           sub="QENN vs ENN-100" accent="var(--amber)" />
         <Metric label="Backend Δ" value="0.00e+00"
@@ -506,12 +519,7 @@ export default function App() {
             fontSize:10, cursor:'pointer' }}>None</button>
       </div>
 
-      {/* ── NMSE Heatmap ── */}
-      <SectionHead title="NMSE Heatmap" tag="all models × all markets" />
-      <Card>
-        <CardTitle>Test NMSE · green = better · red = worse (log scale)</CardTitle>
-        <Heatmap data={data} />
-      </Card>
+      
 
       {/* ── Per-market charts ── */}
       <SectionHead title="Market Detail" tag="click a market" />
@@ -539,36 +547,38 @@ export default function App() {
       </div>
 
       {/* market metric cards */}
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(130px,1fr))',
-        gap:8, marginBottom:4 }}>
-        {visibleModels.map(m => {
-          const d = mktData?.models[m];
-          return d ? (
-            <div key={m} style={{ background:'var(--surface2)', border:`1px solid ${MODEL_COLOR[m]}33`,
-              borderRadius:8, padding:'12px 14px' }}>
-              <div style={{ display:'flex', alignItems:'center', gap:6, marginBottom:8 }}>
-                <Dot color={MODEL_COLOR[m]} size={7} />
-                <span style={{ fontFamily:'var(--mono)', fontSize:9,
-                  color:MODEL_COLOR[m], textTransform:'uppercase', letterSpacing:'.06em' }}>{m}</span>
+      {visibleModels.length > 0 && (
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(130px,1fr))',
+          gap:8, marginBottom:4 }}>
+          {visibleModels.map(m => {
+            const d = mktData?.models[m];
+            return d ? (
+              <div key={m} style={{ background:'var(--surface2)', border:`1px solid ${MODEL_COLOR[m]}33`,
+                borderRadius:8, padding:'12px 14px' }}>
+                <div style={{ display:'flex', alignItems:'center', gap:6, marginBottom:8 }}>
+                  <Dot color={MODEL_COLOR[m]} size={7} />
+                  <span style={{ fontFamily:'var(--mono)', fontSize:9,
+                    color:MODEL_COLOR[m], textTransform:'uppercase', letterSpacing:'.06em' }}>{m}</span>
+                </div>
+                <div style={{ fontFamily:'var(--mono)', fontSize:16, fontWeight:700,
+                  color: d.nmse < 0.5 ? 'var(--teal)' : d.nmse < 3 ? 'var(--amber)' : 'var(--coral)' }}>
+                  {d.nmse.toFixed(4)}
+                </div>
+                <div style={{ fontSize:10, color:'var(--muted)', marginTop:2 }}>NMSE</div>
+                <div style={{ marginTop:8, display:'flex', flexDirection:'column', gap:3 }}>
+                  {[['RMSE',d.rmse?.toFixed(4)],['MAPE',d.mape?.toFixed(4)],['Time',`${d.time}s`]].map(([k,v]) => (
+                    <div key={k} style={{ display:'flex', justifyContent:'space-between',
+                      fontSize:10, fontFamily:'var(--mono)' }}>
+                      <span style={{ color:'var(--muted)' }}>{k}</span>
+                      <span style={{ color:'var(--text)' }}>{v}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
-              <div style={{ fontFamily:'var(--mono)', fontSize:16, fontWeight:700,
-                color: d.nmse < 0.5 ? 'var(--teal)' : d.nmse < 3 ? 'var(--amber)' : 'var(--coral)' }}>
-                {d.nmse.toFixed(4)}
-              </div>
-              <div style={{ fontSize:10, color:'var(--muted)', marginTop:2 }}>NMSE</div>
-              <div style={{ marginTop:8, display:'flex', flexDirection:'column', gap:3 }}>
-                {[['RMSE',d.rmse?.toFixed(4)],['MAPE',d.mape?.toFixed(4)],['Time',`${d.time}s`]].map(([k,v]) => (
-                  <div key={k} style={{ display:'flex', justifyContent:'space-between',
-                    fontSize:10, fontFamily:'var(--mono)' }}>
-                    <span style={{ color:'var(--muted)' }}>{k}</span>
-                    <span style={{ color:'var(--text)' }}>{v}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ) : null;
-        })}
-      </div>
+            ) : null;
+          })}
+        </div>
+      )}
 
       {/* ── All-market bar chart ── */}
       <SectionHead title="Metric Comparison" tag="all markets grouped" />
@@ -584,10 +594,10 @@ export default function App() {
           ))}
         </div>
         <CardTitle>{metric.toUpperCase()} by market — visible models only</CardTitle>
-        <MetricBar data={data} metric={metric} />
+        <MetricBar data={data} metric={metric} visibleModels={visibleModels} />
       </Card>
 
-      {/* ── Radar ── */}
+      {/* ── Radar + Backend equiv ── */}
       <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:14, marginBottom:4 }}>
         <Card>
           <CardTitle>Radar — score = 1/(1+NMSE) · larger = better</CardTitle>
@@ -610,11 +620,18 @@ export default function App() {
       <Card style={{ marginBottom:4 }}>
         <ResultsTable data={data} />
       </Card>
+         
 
+    {/* ── NMSE Heatmap ── */}
+      <SectionHead title="NMSE Heatmap" tag="all models × all markets" />
+      <Card>
+        <CardTitle>Test NMSE · green = better · red = worse (log scale)</CardTitle>
+        <Heatmap data={data} />
+      </Card>     
       <footer style={{ borderTop:'1px solid var(--border)', marginTop:40, paddingTop:20,
         display:'flex', justifyContent:'space-between', flexWrap:'wrap', gap:8,
         fontFamily:'var(--mono)', fontSize:10, color:'var(--muted)' }}>
-        <span>ENN vs QENN Comparative Study · Liu &amp; Ma (2022)</span>
+        <span>ENN vs QENN Comparative Study</span>
         <span>Qiskit · Microsoft Q# · PyTorch · DCQGA</span>
       </footer>
 
