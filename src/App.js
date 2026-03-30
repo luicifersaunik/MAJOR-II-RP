@@ -614,6 +614,13 @@ export default function App() {
           </div>
         </Card>
       </div>
+      
+    {/* ── NMSE Heatmap ── */}
+      <SectionHead title="NMSE Heatmap" tag="all models × all markets" />
+      <Card>
+        <CardTitle>Test NMSE · green = better · red = worse (log scale)</CardTitle>
+        <Heatmap data={data} />
+      </Card>   
 
       {/* ── Full table ── */}
       <SectionHead title="Full Results Table" tag="click headers to sort" />
@@ -621,13 +628,7 @@ export default function App() {
         <ResultsTable data={data} />
       </Card>
          
-
-    {/* ── NMSE Heatmap ── */}
-      <SectionHead title="NMSE Heatmap" tag="all models × all markets" />
-      <Card>
-        <CardTitle>Test NMSE · green = better · red = worse (log scale)</CardTitle>
-        <Heatmap data={data} />
-      </Card>     
+  
       <footer style={{ borderTop:'1px solid var(--border)', marginTop:40, paddingTop:20,
         display:'flex', justifyContent:'space-between', flexWrap:'wrap', gap:8,
         fontFamily:'var(--mono)', fontSize:10, color:'var(--muted)' }}>
